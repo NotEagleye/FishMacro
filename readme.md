@@ -1,7 +1,7 @@
 ## how to run:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/NotEagleye/FishMacro
 cd FishMacro
 
 python3 -m venv venv
