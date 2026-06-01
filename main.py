@@ -51,6 +51,10 @@ class Main(FluentWindow):
             try:
                 if Key == Keyboard.Key.f1:
                     self.StartMacro()
+                elif Key == Keyboard.Key.f2:
+                    self.PauseMacro()
+                elif Key == Keyboard.Key.f3:
+                    self.close()
             except AttributeError:
                 pass
 
@@ -123,9 +127,25 @@ class Main(FluentWindow):
         StartButton.setFixedWidth(100)
         StartButton.setContentsMargins(10, 0, 0, 0)
 
-        HomeLayout.addLayout(
-            self.Create_Row("Start Macro:", StartButton)
-        )
+        PauseButton = PrimaryPushButton(FluentIcon.PAUSE, "Pause")
+
+        PauseButton.clicked.connect(self.PauseMacro)
+
+        PauseButton.setFixedWidth(100)
+        PauseButton.setContentsMargins(10, 0, 0, 0)
+
+        StopButton = PrimaryPushButton(FluentIcon.CLOSE, "Stop")
+
+        StopButton.clicked.connect(self.close)
+
+        StopButton.setFixedWidth(100)
+        StopButton.setContentsMargins(10, 0, 0, 0)
+
+        self.Add_Layouts(HomeLayout, [
+            self.Create_Row("Start Macro (F1):", StartButton),
+            self.Create_Row("Pause Macro (F2):", PauseButton),
+            self.Create_Row("Stop Macro (F3):", StopButton)
+        ])
 
         HomeLayout.addStretch()
 
@@ -376,6 +396,9 @@ class Main(FluentWindow):
                 self.Start_Fishing_Worker()
             else:
                 self.Stop_Fishing_Worker()
+
+    def PauseMacro(self):
+        print("uh not done yet")
 
 if __name__ == '__main__':
     QApplication.setHighDpiScaleFactorRoundingPolicy(
