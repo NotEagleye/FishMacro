@@ -1,0 +1,38 @@
+{
+    "pathing": [
+        {
+            "type": "moveTo",
+            "coordinates": [35, 463]
+        },
+        {
+            "type": "click",
+            "sleep": 0.5
+        },
+        {
+            "type": "moveTo",
+            "coordinates": [386, 126]
+        },
+        {
+            "type": "click",
+            "sleep": 0.5
+        },
+        {
+            "type": "down",
+            "key": "w"
+        },
+        {
+            "type": "down",
+            "key": "a",
+            "wait": 0.8
+        },
+        {
+            "type": "up",
+            "key": "a",
+            "wait": 8.1
+        },
+        {
+            "type": "up",
+            "key": "w"
+        }
+    ]
+}

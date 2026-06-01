@@ -1,0 +1,37 @@
+{
+    "pathing": [
+        {
+            "type": "press",
+            "key": "esc",
+            "sleep": 0.8
+        },
+        {
+            "type": "press",
+            "key": "r",
+            "sleep": 0.4
+        },
+        {
+            "type": "press",
+            "key": "enter",
+            "sleep": 1
+        },
+        {
+            "type": "down",
+            "key": "i",
+            "sleep": 0.8
+        },
+        {
+            "type": "up",
+            "key": "i"
+        },
+        {
+            "type": "down",
+            "key": "o",
+            "sleep": 0.4
+        },
+        {
+            "type": "up",
+            "key": "o"
+        }
+    ]
+}

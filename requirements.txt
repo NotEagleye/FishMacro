@@ -1,0 +1,9 @@
+pywinctl
+pyautogui
+screeninfo
+PyQt5
+PyQt-Fluent-Widgets -i https://pypi.org/simple/
+pytesseract
+mss
+numpy
+pynput
