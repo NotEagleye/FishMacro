@@ -1,0 +1,107 @@
+{
+    "pathing": [
+        {
+            "type": "down",
+            "key": "w",
+            "sleep": 5
+        },
+        {
+            "type": "up",
+            "key": "w"
+        },
+        {
+            "type": "down",
+            "key": "a",
+            "sleep": 5
+        },
+        {
+            "type": "up",
+            "key": "a"
+        },
+        {
+            "type": "down",
+            "key": "w",
+            "sleep": 1
+        },
+        {
+            "type": "up",
+            "key": "w"
+        },
+        {
+            "type": "down",
+            "key": "d",
+            "sleep": 0.1
+        },
+        {
+            "type": "up",
+            "key": "d"
+        },
+        {
+            "type": "down",
+            "key": "s",
+            "sleep": 0.1
+        },
+        {
+            "type": "up",
+            "key": "s",
+            "wait": 0.05
+        },
+        {
+            "type": "down",
+            "key": "w"
+        },
+        {
+            "type": "press",
+            "key": "space",
+            "sleep": 0.16
+        },
+        {
+            "type": "up",
+            "key": "w"
+        },
+        {
+            "type": "down",
+            "key": "w"
+        },
+        {
+            "type": "press",
+            "key": "space",
+            "sleep": 0.22
+        },
+        {
+            "type": "down",
+            "key": "w"
+        },
+        {
+            "type": "press",
+            "key": "space",
+            "sleep": 0.16
+        },
+        {
+            "type": "up",
+            "key": "w"
+        },
+        {
+            "type": "down",
+            "key": "a",
+            "sleep": 0.2
+        },
+        {
+            "type": "up",
+            "key": "a"
+        },
+        {
+            "type": "down",
+            "key": "w",
+            "sleep": 0.15
+        },
+        {
+            "type": "up",
+            "key": "w"
+        },
+        {
+            "type": "press",
+            "key": "e"
+        }
+    ]
+}

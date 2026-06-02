@@ -7,3 +7,4 @@ pytesseract
 mss
 numpy
 pynput
+opencv-python-headless

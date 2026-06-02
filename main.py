@@ -1,6 +1,5 @@
 import pyautogui as PyAutoGui
 import pywinctl as PyWin
-import numpy as NumPy
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QHBoxLayout
@@ -13,8 +12,9 @@ from pynput import keyboard as Keyboard
 
 from typing import Callable, Any, Optional
 
+import Modules.Input as Input
+
 import sys
-import mss
 import time
 import json
 
@@ -69,6 +69,7 @@ class Main(FluentWindow):
 
         self.Listener.stop()
 
+        Input.ReleaseKeys()
         Event.accept()
 
     def CreateInterface(self, Name, TitleCard) -> tuple[QWidget, QVBoxLayout]:
@@ -222,6 +223,36 @@ class Main(FluentWindow):
     def Calibrations_Interface(self):
         CalibrationsInterface, CalibrationsLayout = self.CreateInterface("Calibrations", "Calibrations")
 
+        PresetResolutionBox = ComboBox()
+        PresetResolutionBox.setFixedWidth(150)
+
+        PresetResolutionBox.addItems([
+            "1920x1080"
+        ])
+
+        PresetScaleBox = ComboBox()
+        PresetScaleBox.setFixedWidth(150)
+
+        PresetScaleBox.addItems([
+            "100%",
+            "125%"
+        ])
+
+        PresetModeBox = ComboBox()
+        PresetModeBox.setFixedWidth(150)
+
+        PresetModeBox.addItems([
+            "Full Screen",
+            "Windowed"
+        ])
+
+        SetPrimaryButton = PrimaryPushButton(FluentIcon.ACCEPT, "Set")
+        SetPrimaryButton.setFixedWidth(150)
+
+        self.Add_Layouts(CalibrationsLayout, [
+            self.Create_Row("Presets:", PresetResolutionBox, PresetScaleBox, PresetModeBox, SetPrimaryButton)
+        ])
+
         CalibrationsLayout.addStretch()
 
         return CalibrationsInterface
@@ -248,7 +279,7 @@ class Main(FluentWindow):
 
     def Grab_Config(self):
         Config_Path = DATA_DIR / "Config.json"
-        Default_Config_Path = DATA_DIR / "DefaultConfig.json"
+        Default_Config_Path = ASSETS_DIR / "DefaultConfig.json"
 
         Config = self.Decode_JSON(Config_Path)
         Default_Config = self.Decode_JSON(Default_Config_Path)
@@ -316,7 +347,7 @@ class Main(FluentWindow):
         FishingConfig = self.Get_Config("fishing")
 
         if FishingConfig.get("pathing") == "VIP":
-            Seconds = Seconds * 0.8
+            Seconds = Seconds * 0.78
 
         time.sleep(Seconds)
 
@@ -339,11 +370,18 @@ class Main(FluentWindow):
                 WaitTime = Properties.get("wait")
 
                 if Action_Type == "press":
-                    PyAutoGui.press(Key)
+                    if Key == "space": # just pressing space doesnt jump for some reason
+                        Input.KeyDown(Key)
+
+                        time.sleep(0.01)
+
+                        Input.KeyUp(Key)
+                    else:
+                        PyAutoGui.press(Key)
                 elif Action_Type == "down":
-                    PyAutoGui.keyDown(Key)
+                    Input.KeyDown(Key)
                 elif Action_Type == "up":
-                    PyAutoGui.keyUp(Key)
+                    Input.KeyUp(Key)
                 elif Action_Type == "moveTo":
                     Coordinates = Properties.get("coordinates")
 
@@ -398,7 +436,7 @@ class Main(FluentWindow):
                 self.Stop_Fishing_Worker()
 
     def PauseMacro(self):
-        print("uh not done yet")
+        self.Stop_Fishing_Worker()
 
 if __name__ == '__main__':
     QApplication.setHighDpiScaleFactorRoundingPolicy(

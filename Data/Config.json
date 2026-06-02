@@ -2,8 +2,8 @@
     "fishing": {
         "enabled": true,
         "pathing": "Normal",
-        "fishingloop": 15,
-        "sellloop": 15
+        "fishingloop": 100,
+        "sellloop": 56
     },
     "calibrations": {
         "collections_button": [
