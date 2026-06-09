@@ -2,8 +2,9 @@
     "fishing": {
         "enabled": true,
         "pathing": "Normal",
-        "fishingloop": 100,
-        "sellloop": 56
+        "fishingloop": 15,
+        "sellloop": 15,
+        "closechat": true
     },
     "calibrations": {
         "collections_button": [
@@ -230,5 +231,6 @@
             795,
             619
         ]
-    }
+    },
+    "themecolor": "Magenta"
 }

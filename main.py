@@ -5,14 +5,26 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QHBoxLayout
 
 from qfluentwidgets import (
-        FluentWindow, FluentIcon, setTheme, Theme, FluentStyleSheet, SwitchButton, PrimaryPushButton, ComboBox, SpinBox
-    )
+    FluentWindow,
+    FluentIcon,
+    setTheme,
+    setThemeColor,
+    Theme,
+    FluentStyleSheet,
+    SwitchButton,
+    PrimaryPushButton,
+    ComboBox,
+    SpinBox,
+)
 
 from pynput import keyboard as Keyboard
+
+from crossfiledialog import open_file as Open_File
 
 from typing import Callable, Any, Optional
 
 import Modules.Input as Input
+import Modules.Calibrations as Calibrations
 
 import sys
 import time
@@ -31,11 +43,19 @@ PATHING_DIR = BASE_DIR / "Pathing"
 ASSETS_DIR = BASE_DIR / "Assets"
 DATA_DIR = BASE_DIR / "Data"
 
+
 class Main(FluentWindow):
     def __init__(self):
         super().__init__()
 
         self.Config = self.Grab_Config()
+
+        ThemeColor = self.Config.get("themecolor")
+
+        try:
+            setThemeColor(ThemeColor)
+        except Exception:
+            pass
 
         self.Fishing_Stop_Event = Event()
         self.Fishing_Lock = Lock()
@@ -104,12 +124,14 @@ class Main(FluentWindow):
         Layout.addStretch()
 
         return Layout
-    
+
     def Add_Layouts(self, MainLayout: QHBoxLayout, Layouts: tuple[QHBoxLayout]):
         for Layout in Layouts:
             MainLayout.addLayout(Layout)
 
-    def ConfigCallback(self, Config, Property, GetValue : Optional[Callable[[Any], Any]] = None) -> Callable[[Any], None]:
+    def ConfigCallback(
+        self, Config, Property, GetValue: Optional[Callable[[Any], Any]] = None
+    ) -> Callable[[Any], None]:
         def Callback(Value):
             if GetValue:
                 Config[Property] = GetValue(Value)
@@ -117,7 +139,7 @@ class Main(FluentWindow):
                 Config[Property] = Value
 
         return Callback
-    
+
     def Home_Interface(self):
         HomeInterface, HomeLayout = self.CreateInterface("Home", "Home")
 
@@ -142,11 +164,14 @@ class Main(FluentWindow):
         StopButton.setFixedWidth(100)
         StopButton.setContentsMargins(10, 0, 0, 0)
 
-        self.Add_Layouts(HomeLayout, [
-            self.Create_Row("Start Macro (F1):", StartButton),
-            self.Create_Row("Pause Macro (F2):", PauseButton),
-            self.Create_Row("Stop Macro (F3):", StopButton)
-        ])
+        self.Add_Layouts(
+            HomeLayout,
+            [
+                self.Create_Row("Start Macro (F1):", StartButton),
+                self.Create_Row("Pause Macro (F2):", PauseButton),
+                self.Create_Row("Stop Macro (F3):", StopButton),
+            ],
+        )
 
         HomeLayout.addStretch()
 
@@ -155,29 +180,21 @@ class Main(FluentWindow):
     def Fishing_Interface(self):
         FishingConfig = self.Get_Config("fishing")
 
-        FishingInterface, FishingLayout = self.CreateInterface("Fishing", "Fishing Settings")
+        FishingInterface, FishingLayout = self.CreateInterface(
+            "Fishing", "Fishing Settings"
+        )
 
         Toggle = SwitchButton()
 
-        Toggle.setChecked(
-            isChecked=FishingConfig.get("enabled")
-        )
-
-        Toggle.checkedChanged.connect(
-            self.ConfigCallback(FishingConfig, "enabled")
-        )
+        Toggle.setChecked(isChecked=FishingConfig.get("enabled"))
+        Toggle.checkedChanged.connect(self.ConfigCallback(FishingConfig, "enabled"))
 
         PathingComboBox = ComboBox()
         PathingComboBox.setFixedWidth(200)
 
-        PathingComboBox.addItems([
-            "Normal",
-            "VIP"
-        ])
+        PathingComboBox.addItems(["Normal", "VIP"])
 
-        PathingComboBox.setCurrentText(
-            FishingConfig.get("pathing")
-        )
+        PathingComboBox.setCurrentText(FishingConfig.get("pathing"))
 
         PathingComboBox.currentTextChanged.connect(
             self.ConfigCallback(FishingConfig, "pathing")
@@ -188,9 +205,7 @@ class Main(FluentWindow):
         FishSpinBox.setFixedWidth(150)
         FishSpinBox.setMaximum(10**9)
 
-        FishSpinBox.setValue(
-            FishingConfig.get("fishingloop")
-        )
+        FishSpinBox.setValue(FishingConfig.get("fishingloop"))
 
         FishSpinBox.valueChanged.connect(
             self.ConfigCallback(FishingConfig, "fishingloop")
@@ -201,76 +216,144 @@ class Main(FluentWindow):
         SellSpinBox.setFixedWidth(150)
         SellSpinBox.setMaximum(56)
 
-        SellSpinBox.setValue(
-            FishingConfig.get("sellloop")
+        SellSpinBox.setValue(FishingConfig.get("sellloop"))
+
+        SellSpinBox.valueChanged.connect(self.ConfigCallback(FishingConfig, "sellloop"))
+
+        CloseChatToggle = SwitchButton()
+
+        CloseChatToggle.setChecked(isChecked=FishingConfig.get("closechat"))
+        CloseChatToggle.checkedChanged.connect(
+            self.ConfigCallback(FishingConfig, "closechat")
         )
 
-        SellSpinBox.valueChanged.connect(
-            self.ConfigCallback(FishingConfig, "sellloop")
+        self.Add_Layouts(
+            FishingLayout,
+            [
+                self.Create_Row("Fishing Mode:", Toggle),
+                self.Create_Row("Pathing Mode:", PathingComboBox),
+                self.Create_Row("Fish x fishes:", FishSpinBox),
+                self.Create_Row("Sell x fishes:", SellSpinBox),
+                self.Create_Row("Close chat before fishing:", CloseChatToggle),
+            ],
         )
-
-        self.Add_Layouts(FishingLayout, [
-            self.Create_Row("Fishing Mode:", Toggle),
-            self.Create_Row("Pathing Mode:", PathingComboBox),
-            self.Create_Row("Fish x fishes:", FishSpinBox),
-            self.Create_Row("Sell x fishes:", SellSpinBox)
-        ])
 
         FishingLayout.addStretch()
 
         return FishingInterface
 
     def Calibrations_Interface(self):
-        CalibrationsInterface, CalibrationsLayout = self.CreateInterface("Calibrations", "Calibrations")
+        CalibrationsInterface, CalibrationsLayout = self.CreateInterface(
+            "Calibrations", "Calibrations"
+        )
 
         PresetResolutionBox = ComboBox()
         PresetResolutionBox.setFixedWidth(150)
 
-        PresetResolutionBox.addItems([
-            "1920x1080"
-        ])
+        PresetResolutionBox.addItems(["1920x1080"])
 
         PresetScaleBox = ComboBox()
         PresetScaleBox.setFixedWidth(150)
 
-        PresetScaleBox.addItems([
-            "100%",
-            "125%"
-        ])
-
-        PresetModeBox = ComboBox()
-        PresetModeBox.setFixedWidth(150)
-
-        PresetModeBox.addItems([
-            "Full Screen",
-            "Windowed"
-        ])
+        PresetScaleBox.addItems(["100%", "125%"])
 
         SetPrimaryButton = PrimaryPushButton(FluentIcon.ACCEPT, "Set")
         SetPrimaryButton.setFixedWidth(150)
 
-        self.Add_Layouts(CalibrationsLayout, [
-            self.Create_Row("Presets:", PresetResolutionBox, PresetScaleBox, PresetModeBox, SetPrimaryButton)
-        ])
+        SetPrimaryButton.clicked.connect(
+            lambda: Calibrations.Set_Calibrations_Preset(
+                PresetResolutionBox.currentText(),
+                PresetScaleBox.currentText(),
+            )
+        )
+
+        self.Add_Layouts(
+            CalibrationsLayout,
+            [
+                self.Create_Row(
+                    "Presets:",
+                    PresetResolutionBox,
+                    PresetScaleBox,
+                    SetPrimaryButton,
+                )
+            ],
+        )
 
         CalibrationsLayout.addStretch()
 
         return CalibrationsInterface
 
+    def Config_Interface(self):
+        ConfigInterface, ConfigLayout = self.CreateInterface("Config", "Configurations")
+
+        ImportConfigButton = PrimaryPushButton(FluentIcon.DOWNLOAD, "Import")
+
+        def ImportConfig():
+            Imported_Config_Path = Open_File(title="Choose a config", filter="*.json")
+
+            if Imported_Config_Path:
+                self.Import_Config(Imported_Config_Path)
+
+        ImportConfigButton.clicked.connect(ImportConfig)
+
+        ThemeColorBox = ComboBox()
+
+        ThemeColorBox.addItems(
+            [
+                "White",
+                "Cyan",
+                "Red",
+                "Magenta",
+                "Green",
+                "Yellow",
+                "Blue",
+            ]
+        )
+
+        ThemeColorBox.setCurrentText(self.Config.get("themecolor"))
+        ThemeColorBox.currentTextChanged.connect(
+            self.ConfigCallback(
+                self.Config, "themecolor", lambda Color: setThemeColor(Color) or Color
+            )
+        )
+
+        self.Add_Layouts(
+            ConfigLayout,
+            [
+                self.Create_Row("Import Config:", ImportConfigButton),
+                self.Create_Row("Color Theme:", ThemeColorBox),
+            ],
+        )
+
+        ConfigLayout.addStretch()
+
+        return ConfigInterface
+
+    def Potion_Interface(self):
+        PotionInterface, PotionLayout = self.CreateInterface(
+            "Potions", "Potion Crafting"
+        )
+
+        PotionLayout.addStretch()
+
+        return PotionInterface
+
     def Create_Interfaces(self):
         return [
-            [ self.Home_Interface(), FluentIcon.HOME, "Home" ],
-            [ self.Fishing_Interface(), FluentIcon.SETTING, "Fishing" ],
-            [ self.Calibrations_Interface(), FluentIcon.SYNC, "Calibrations" ]
+            [self.Home_Interface(), FluentIcon.HOME, "Home"],
+            [self.Fishing_Interface(), FluentIcon.SETTING, "Fishing"],
+            [self.Calibrations_Interface(), FluentIcon.SYNC, "Calibrations"],
+            [self.Potion_Interface(), FluentIcon.MOVE, "Potion Crafting"],
+            [self.Config_Interface(), FluentIcon.DEVELOPER_TOOLS, "Configuration"],
         ]
-    
+
     def Decode_JSON(self, Path):
         if not Path.exists():
             print(f"Error: file not found at {Path}")
             return None
 
         try:
-            with open(Path, 'r') as f:
+            with open(Path, "r") as f:
                 Data = json.load(f)
                 return Data
         except json.JSONDecodeError as Error:
@@ -288,24 +371,48 @@ class Main(FluentWindow):
             if Configs not in Config:
                 Config[Configs] = Default_Config.get(Configs)
                 continue
-            
+
+            try:
+                iter(Default_Config.get(Configs))
+            except Exception:
+                continue
+
             for Property in Default_Config.get(Configs):
-                if Config[Configs].get(Property) == None:
+                try:
+                    iter(Config[Configs].get(Property))
+                except Exception:
+                    continue
+
+                if Config[Configs].get(Property) is None:
                     Config[Configs][Property] = Default_Config[Configs][Property]
 
         return Config
-    
+
     def Save_Config(self):
         Config_Path = DATA_DIR / "Config.json"
 
         with open(Config_Path, "w") as Config_File:
             json.dump(self.Config, Config_File, indent=4)
-    
+
     def Get_Config(self, Property):
         if self.Config:
             return self.Config.get(Property)
         else:
             return None
+
+    def Import_Config(self, Path: str):
+        Config_Path = DATA_DIR / "Config.json"
+
+        try:
+            with open(Path, "r") as Imported_Config:
+                Config_Data = json.load(Imported_Config)
+
+            with open(Config_Path, "w") as Config_File:
+                json.dump(Config_Data, Config_File, indent=4)
+
+            self.Config = self.Grab_Config()
+        except Exception as Error:
+            print(f"Error while trying to import config. Error: {Error}")
 
     def Get_Screen_Resolution(self):
         return Main_Monitor.width, Main_Monitor.height
@@ -338,7 +445,7 @@ class Main(FluentWindow):
 
         if File_Path.exists():
             JSON = self.Decode_JSON(File_Path)
-            
+
             return JSON.get("pathing")
         else:
             return None
@@ -351,11 +458,11 @@ class Main(FluentWindow):
 
         time.sleep(Seconds)
 
-    def MoveTo(self, X, Y, DontTween: bool | None = None):
+    def MoveTo(self, Coordinates, DontTween: bool | None = None):
         if not DontTween:
-            PyAutoGui.moveTo(X, Y, 0.1, PyAutoGui.linear)
+            PyAutoGui.moveTo(*Coordinates, 0.1, PyAutoGui.linear)
         else:
-            PyAutoGui.moveTo(X, Y)
+            PyAutoGui.moveTo(*Coordinates)
 
     def Start_Pathing(self, Pathing: str):
         Pathing = Pathing + ".json"
@@ -370,7 +477,9 @@ class Main(FluentWindow):
                 WaitTime = Properties.get("wait")
 
                 if Action_Type == "press":
-                    if Key == "space": # just pressing space doesnt jump for some reason
+                    if (
+                        Key == "space"
+                    ):  # just pressing space doesnt jump for some reason
                         Input.KeyDown(Key)
 
                         time.sleep(0.01)
@@ -385,7 +494,7 @@ class Main(FluentWindow):
                 elif Action_Type == "moveTo":
                     Coordinates = Properties.get("coordinates")
 
-                    self.MoveTo(*Coordinates)
+                    self.MoveTo(Coordinates)
                 elif Action_Type == "click":
                     PyAutoGui.click()
 
@@ -398,7 +507,7 @@ class Main(FluentWindow):
         with self.Fishing_Lock:
             if self.Fishing_Thread and self.Fishing_Thread.is_alive():
                 return
-            
+
             self.Fishing_Stop_Event.clear()
 
             def Worker():
@@ -407,7 +516,7 @@ class Main(FluentWindow):
 
                     Start_Fishing(self)
                 except Exception as Error:
-                    print(f'Fishing failed: {Error}')
+                    print(f"Fishing failed: {Error}")
 
             self.Fishing_Thread = Thread(target=Worker, daemon=True)
             self.Fishing_Thread.start()
@@ -420,7 +529,7 @@ class Main(FluentWindow):
 
             if FishingThread and FishingThread.is_alive():
                 FishingThread.join(timeout=0.1)
-            
+
             if not FishingThread or FishingThread and not FishingThread.is_alive():
                 self.Fishing_Thread = None
 
@@ -438,7 +547,8 @@ class Main(FluentWindow):
     def PauseMacro(self):
         self.Stop_Fishing_Worker()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )

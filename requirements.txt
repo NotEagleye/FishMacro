@@ -8,3 +8,4 @@ mss
 numpy
 pynput
 opencv-python-headless
+crossfiledialog

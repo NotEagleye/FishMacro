@@ -1,9 +1,11 @@
 {
+    "themecolor": "Blue",
     "fishing": {
         "enabled": true,
         "pathing": "Normal",
         "fishingloop": 15,
-        "sellloop": 15
+        "sellloop": 15,
+        "closechat": false
     },
     "calibrations": {
         "collections_button": [35, 463],
