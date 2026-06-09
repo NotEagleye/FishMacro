@@ -4,7 +4,7 @@
         "pathing": "Normal",
         "fishingloop": 15,
         "sellloop": 15,
-        "closechat": true
+        "closechat": false
     },
     "calibrations": {
         "collections_button": [
@@ -232,5 +232,5 @@
             619
         ]
     },
-    "themecolor": "Magenta"
+    "themecolor": "Cyan"
 }
