@@ -1,14 +1,37 @@
 from pathlib import Path
 
 import json
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 ASSETS_DIR = BASE_DIR / "Assets"
-DATA_DIR = BASE_DIR / "Data"
-
-CALIBRATIONS_PATH = DATA_DIR / "Calibrations.json"
 DEFAULT_CALIBRATIONS_PATH = ASSETS_DIR / "DefaultCalibrations.json"
+
+CONFIG_DIR = Path.home() / ".config" / "EaglesMacro"
+CALIBRATIONS_PATH = CONFIG_DIR / "Calibrations.json"
+
+os.makedirs(CONFIG_DIR, exist_ok=True)
+
+
+def Decode_JSON(Path):
+    if not Path.exists():
+        print(f"Error: file not found at {Path}")
+        return None
+
+    try:
+        with open(Path, "r") as f:
+            Data = json.load(f)
+            return Data
+    except json.JSONDecodeError as Error:
+        print(f"Error decoding JSON in file: {Error}")
+        return None
+
+
+if not os.path.exists(CALIBRATIONS_PATH):
+    with open(CALIBRATIONS_PATH, "w") as Calibrations_File:
+        Default_Calibrations = Decode_JSON(DEFAULT_CALIBRATIONS_PATH).get("presets")
+        json.dump(Default_Calibrations[0], Calibrations_File, indent=4)
 
 
 def Decode_JSON(Path):

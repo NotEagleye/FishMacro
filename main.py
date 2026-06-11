@@ -26,6 +26,7 @@ from typing import Callable, Any, Optional
 import Modules.Input as Input
 import Modules.Calibrations as Calibrations
 
+import os
 import sys
 import time
 import json
@@ -37,11 +38,17 @@ from screeninfo import get_monitors as Get_Monitors
 
 Main_Monitor = Get_Monitors()[0]
 
+CONFIG_DIR = Path.home() / ".config" / "EaglesMacro"
+CONFIG_FILE = CONFIG_DIR / "Config.json"
+
+os.makedirs(CONFIG_DIR, exist_ok=True)
+
+print(CONFIG_DIR)
+
 BASE_DIR = Path(__file__).resolve().parent
 
 PATHING_DIR = BASE_DIR / "Pathing"
 ASSETS_DIR = BASE_DIR / "Assets"
-DATA_DIR = BASE_DIR / "Data"
 
 
 class Main(FluentWindow):
@@ -361,11 +368,16 @@ class Main(FluentWindow):
             return None
 
     def Grab_Config(self):
-        Config_Path = DATA_DIR / "Config.json"
+        Config_Path = CONFIG_DIR / "Config.json"
         Default_Config_Path = ASSETS_DIR / "DefaultConfig.json"
 
-        Config = self.Decode_JSON(Config_Path)
         Default_Config = self.Decode_JSON(Default_Config_Path)
+
+        if not os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "w") as Config_File:
+                json.dump(Default_Config, Config_File, indent=4)
+
+        Config = self.Decode_JSON(Config_Path)
 
         for Configs in Default_Config:
             if Configs not in Config:
@@ -389,7 +401,7 @@ class Main(FluentWindow):
         return Config
 
     def Save_Config(self):
-        Config_Path = DATA_DIR / "Config.json"
+        Config_Path = CONFIG_DIR / "Config.json"
 
         with open(Config_Path, "w") as Config_File:
             json.dump(self.Config, Config_File, indent=4)
@@ -401,7 +413,7 @@ class Main(FluentWindow):
             return None
 
     def Import_Config(self, Path: str):
-        Config_Path = DATA_DIR / "Config.json"
+        Config_Path = CONFIG_DIR / "Config.json"
 
         try:
             with open(Path, "r") as Imported_Config:
