@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import main as Main
+
 import json
 import os
 
@@ -28,10 +30,17 @@ def Decode_JSON(Path):
         return None
 
 
-if not os.path.exists(CALIBRATIONS_PATH):
+def IsEmpty():
+    with open(CALIBRATIONS_PATH, "r") as Config_File:
+        return Config_File != ""
+
+
+if not os.path.exists(CALIBRATIONS_PATH) or IsEmpty():
     with open(CALIBRATIONS_PATH, "w") as Calibrations_File:
         Default_Calibrations = Decode_JSON(DEFAULT_CALIBRATIONS_PATH).get("presets")
-        json.dump(Default_Calibrations[0], Calibrations_File, indent=4)
+        json.dump(
+            Default_Calibrations[0].get("calibrations"), Calibrations_File, indent=4
+        )
 
 
 def Decode_JSON(Path):
@@ -70,8 +79,9 @@ def Get_Calibration_Presets():
     return Default_Calibrations.get("presets")
 
 
-def Set_Calibrations_Preset(Resolution, Scale):
+def Set_Calibrations_Preset(Macro: Main.Main, Resolution, Scale):
     Default_Calibrations = Get_Calibration_Presets()
+    Macro_Config = Macro.Config
 
     for Calibrations in Default_Calibrations:
         Calibration_Resolution = Calibrations.get("resolution")
@@ -82,3 +92,4 @@ def Set_Calibrations_Preset(Resolution, Scale):
         if Calibration_Resolution == Resolution and Calibration_Scale == Scale:
             with open(CALIBRATIONS_PATH, "w") as Calibration_File:
                 json.dump(Calibration_Preset, Calibration_File, indent=4)
+                Macro_Config["calibrations"] = Calibration_Preset

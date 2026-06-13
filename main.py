@@ -26,6 +26,14 @@ from typing import Callable, Any, Optional
 import Modules.Input as Input
 import Modules.Calibrations as Calibrations
 
+from Modules.Config import (
+    Get_Config,
+    Save_Config,
+    Grab_Config,
+    Import_Config,
+    Edit_Config,
+)
+
 import os
 import sys
 import time
@@ -43,8 +51,6 @@ CONFIG_FILE = CONFIG_DIR / "Config.json"
 
 os.makedirs(CONFIG_DIR, exist_ok=True)
 
-print(CONFIG_DIR)
-
 BASE_DIR = Path(__file__).resolve().parent
 
 PATHING_DIR = BASE_DIR / "Pathing"
@@ -55,7 +61,35 @@ class Main(FluentWindow):
     def __init__(self):
         super().__init__()
 
-        self.Config = self.Grab_Config()
+        self.Config, self.ConfigSignal = Grab_Config(self)
+        self.ConfigChangedCallbacks = {}
+
+        def SignalCalled(Path: str, Value: any):
+            if Path != "config":
+                PathIndexes = Path.split(".")
+                Pointer = self.ConfigChangedCallbacks
+
+                for Index in PathIndexes:
+                    Pointer = Pointer[Index]
+
+                for Function in Pointer:
+                    try:
+                        Function(Value)
+                    except Exception:
+                        pass
+            else:
+
+                def DeepSearch(Config, Callbacks):
+                    for Key, Value in Callbacks.items():
+                        if isinstance(Value, dict):
+                            DeepSearch(Config[Key], Value)
+                        elif isinstance(Value, list):
+                            for Function in Value:
+                                Function(Config[Key])
+
+                DeepSearch(Value, self.ConfigChangedCallbacks)
+
+        self.ConfigSignal.Connect(SignalCalled)
 
         ThemeColor = self.Config.get("themecolor")
 
@@ -92,12 +126,59 @@ class Main(FluentWindow):
 
     def closeEvent(self, Event):
         self.Stop_Fishing_Worker()
-        self.Save_Config()
+        Save_Config(self)
 
         self.Listener.stop()
 
         Input.ReleaseKeys()
         Event.accept()
+
+    def ConfigCallback(
+        self, Path, GetValue: Optional[Callable[[Any], Any]] = None
+    ) -> Callable[[Any], None]:
+        def Callback(Value):
+            if GetValue:
+                Edit_Config(self, Path, GetValue(Value))
+            else:
+                Edit_Config(self, Path, Value)
+
+        return Callback
+
+    def ChangeToConfig(
+        self,
+        Path: str,
+        Function: Callable,
+        Value: Optional[Callable[[Any], Any]] = None,
+    ):
+        PathIndexes = Path.split(".")
+        LastIndex = PathIndexes.pop()
+
+        Pointer = self.ConfigChangedCallbacks
+
+        for Index in PathIndexes:
+            print(Index, type(Index), PathIndexes, LastIndex)
+
+            try:
+                Pointer = Pointer[Index]
+            except Exception:
+                Pointer[Index] = {}
+                Pointer = Pointer[Index]
+
+        try:
+            Pointer[LastIndex].append(
+                lambda ChangedValue: Function(
+                    Value and Value(ChangedValue) or ChangedValue
+                )
+            )
+        except Exception:
+            Pointer[LastIndex] = []
+            Pointer[LastIndex].append(
+                lambda ChangedValue: Function(
+                    Value and Value(ChangedValue) or ChangedValue
+                )
+            )
+
+        print(self.ConfigChangedCallbacks)
 
     def CreateInterface(self, Name, TitleCard) -> tuple[QWidget, QVBoxLayout]:
         Interface = QWidget()
@@ -135,17 +216,6 @@ class Main(FluentWindow):
     def Add_Layouts(self, MainLayout: QHBoxLayout, Layouts: tuple[QHBoxLayout]):
         for Layout in Layouts:
             MainLayout.addLayout(Layout)
-
-    def ConfigCallback(
-        self, Config, Property, GetValue: Optional[Callable[[Any], Any]] = None
-    ) -> Callable[[Any], None]:
-        def Callback(Value):
-            if GetValue:
-                Config[Property] = GetValue(Value)
-            else:
-                Config[Property] = Value
-
-        return Callback
 
     def Home_Interface(self):
         HomeInterface, HomeLayout = self.CreateInterface("Home", "Home")
@@ -185,7 +255,7 @@ class Main(FluentWindow):
         return HomeInterface
 
     def Fishing_Interface(self):
-        FishingConfig = self.Get_Config("fishing")
+        FishingConfig = Get_Config(self, "fishing")
 
         FishingInterface, FishingLayout = self.CreateInterface(
             "Fishing", "Fishing Settings"
@@ -194,7 +264,9 @@ class Main(FluentWindow):
         Toggle = SwitchButton()
 
         Toggle.setChecked(isChecked=FishingConfig.get("enabled"))
-        Toggle.checkedChanged.connect(self.ConfigCallback(FishingConfig, "enabled"))
+        self.ChangeToConfig("fishing.enabled", Toggle.setChecked)
+
+        Toggle.checkedChanged.connect(self.ConfigCallback("fishing.enabled"))
 
         PathingComboBox = ComboBox()
         PathingComboBox.setFixedWidth(200)
@@ -202,9 +274,10 @@ class Main(FluentWindow):
         PathingComboBox.addItems(["Normal", "VIP"])
 
         PathingComboBox.setCurrentText(FishingConfig.get("pathing"))
+        self.ChangeToConfig("fishing.pathing", PathingComboBox.setCurrentText)
 
         PathingComboBox.currentTextChanged.connect(
-            self.ConfigCallback(FishingConfig, "pathing")
+            self.ConfigCallback("fishing.pathing")
         )
 
         FishSpinBox = SpinBox()
@@ -213,10 +286,9 @@ class Main(FluentWindow):
         FishSpinBox.setMaximum(10**9)
 
         FishSpinBox.setValue(FishingConfig.get("fishingloop"))
+        self.ChangeToConfig("fishing.fishingloop", FishSpinBox.setValue)
 
-        FishSpinBox.valueChanged.connect(
-            self.ConfigCallback(FishingConfig, "fishingloop")
-        )
+        FishSpinBox.valueChanged.connect(self.ConfigCallback("fishing.fishingloop"))
 
         SellSpinBox = SpinBox()
 
@@ -224,15 +296,16 @@ class Main(FluentWindow):
         SellSpinBox.setMaximum(56)
 
         SellSpinBox.setValue(FishingConfig.get("sellloop"))
+        self.ChangeToConfig("fishing.sellloop", SellSpinBox.setValue)
 
-        SellSpinBox.valueChanged.connect(self.ConfigCallback(FishingConfig, "sellloop"))
+        SellSpinBox.valueChanged.connect(self.ConfigCallback("fishing.sellloop"))
 
         CloseChatToggle = SwitchButton()
 
         CloseChatToggle.setChecked(isChecked=FishingConfig.get("closechat"))
-        CloseChatToggle.checkedChanged.connect(
-            self.ConfigCallback(FishingConfig, "closechat")
-        )
+        self.ChangeToConfig("fishing.closechat", CloseChatToggle.setChecked)
+
+        CloseChatToggle.checkedChanged.connect(self.ConfigCallback("fishing.closechat"))
 
         self.Add_Layouts(
             FishingLayout,
@@ -269,6 +342,7 @@ class Main(FluentWindow):
 
         SetPrimaryButton.clicked.connect(
             lambda: Calibrations.Set_Calibrations_Preset(
+                self,
                 PresetResolutionBox.currentText(),
                 PresetScaleBox.currentText(),
             )
@@ -296,10 +370,12 @@ class Main(FluentWindow):
         ImportConfigButton = PrimaryPushButton(FluentIcon.DOWNLOAD, "Import")
 
         def ImportConfig():
-            Imported_Config_Path = Open_File(title="Choose a config", filter="*.json")
+            Imported_Config_Path = Open_File(
+                title="Choose a config", filter={"Config JSON": "*.json"}
+            )
 
             if Imported_Config_Path:
-                self.Import_Config(Imported_Config_Path)
+                Import_Config(self, Imported_Config_Path)
 
         ImportConfigButton.clicked.connect(ImportConfig)
 
@@ -318,9 +394,11 @@ class Main(FluentWindow):
         )
 
         ThemeColorBox.setCurrentText(self.Config.get("themecolor"))
+        self.ChangeToConfig("themecolor", ThemeColorBox.setCurrentText)
+
         ThemeColorBox.currentTextChanged.connect(
             self.ConfigCallback(
-                self.Config, "themecolor", lambda Color: setThemeColor(Color) or Color
+                "themecolor", lambda Color: setThemeColor(Color) or Color
             )
         )
 
@@ -339,6 +417,30 @@ class Main(FluentWindow):
     def Potion_Interface(self):
         PotionInterface, PotionLayout = self.CreateInterface(
             "Potions", "Potion Crafting"
+        )
+
+        PotionsComboBox = ComboBox()
+
+        PotionsComboBox.addItems(
+            [
+                "Fortune Potion I",
+                "Fortune Potion II",
+                "Fortune Potion III",
+                "Haste Potion I",
+                "Haste Potion II",
+                "Haste Potion III",
+                "Jewelry Potion",
+                "Zombie Potion",
+                "Rage Potion",
+                "Diver Potion",
+                "Potion of Bound",
+                "Heavenly Potion",
+                "Godly Potion (Zeus)",
+                "Godly Potion (Poseidon)",
+                "Godly Potion (Hades)",
+                "Warp Potion",
+                "Godlike Potion",
+            ]
         )
 
         PotionLayout.addStretch()
@@ -366,65 +468,6 @@ class Main(FluentWindow):
         except json.JSONDecodeError as Error:
             print(f"Error decoding JSON in file: {Error}")
             return None
-
-    def Grab_Config(self):
-        Config_Path = CONFIG_DIR / "Config.json"
-        Default_Config_Path = ASSETS_DIR / "DefaultConfig.json"
-
-        Default_Config = self.Decode_JSON(Default_Config_Path)
-
-        if not os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, "w") as Config_File:
-                json.dump(Default_Config, Config_File, indent=4)
-
-        Config = self.Decode_JSON(Config_Path)
-
-        for Configs in Default_Config:
-            if Configs not in Config:
-                Config[Configs] = Default_Config.get(Configs)
-                continue
-
-            try:
-                iter(Default_Config.get(Configs))
-            except Exception:
-                continue
-
-            for Property in Default_Config.get(Configs):
-                try:
-                    iter(Config[Configs].get(Property))
-                except Exception:
-                    continue
-
-                if Config[Configs].get(Property) is None:
-                    Config[Configs][Property] = Default_Config[Configs][Property]
-
-        return Config
-
-    def Save_Config(self):
-        Config_Path = CONFIG_DIR / "Config.json"
-
-        with open(Config_Path, "w") as Config_File:
-            json.dump(self.Config, Config_File, indent=4)
-
-    def Get_Config(self, Property):
-        if self.Config:
-            return self.Config.get(Property)
-        else:
-            return None
-
-    def Import_Config(self, Path: str):
-        Config_Path = CONFIG_DIR / "Config.json"
-
-        try:
-            with open(Path, "r") as Imported_Config:
-                Config_Data = json.load(Imported_Config)
-
-            with open(Config_Path, "w") as Config_File:
-                json.dump(Config_Data, Config_File, indent=4)
-
-            self.Config = self.Grab_Config()
-        except Exception as Error:
-            print(f"Error while trying to import config. Error: {Error}")
 
     def Get_Screen_Resolution(self):
         return Main_Monitor.width, Main_Monitor.height
@@ -463,7 +506,7 @@ class Main(FluentWindow):
             return None
 
     def Wait(self, Seconds):
-        FishingConfig = self.Get_Config("fishing")
+        FishingConfig = Get_Config(self, "fishing")
 
         if FishingConfig.get("pathing") == "VIP":
             Seconds = Seconds * 0.78
@@ -549,7 +592,7 @@ class Main(FluentWindow):
         Roblox_Window = self.Get_Roblox_Window()
 
         if Roblox_Window:
-            FishingConfig = self.Get_Config("fishing")
+            FishingConfig = Get_Config(self, "fishing")
 
             if FishingConfig.get("enabled"):
                 self.Start_Fishing_Worker()
