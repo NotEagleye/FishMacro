@@ -17,7 +17,7 @@
         },
         {
             "type": "moveTo",
-            "coordinates": [35, 463]
+            "coordinates": "collections_button"
         },
         {
             "type": "click",
@@ -25,7 +25,7 @@
         },
         {
             "type": "moveTo",
-            "coordinates": [386, 126]
+            "coordinates": "exit_collections_button"
         },
         {
             "type": "click",
@@ -43,7 +43,7 @@
         {
             "type": "down",
             "key": "o",
-            "sleep": 0.4
+            "sleep": 1.4
         },
         {
             "type": "up",

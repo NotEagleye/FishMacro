@@ -3,7 +3,6 @@ import os
 
 from pathlib import Path
 
-import main as Main
 from Modules.Signal import Signal
 
 CONFIG_DIR = Path.home() / ".config" / "EaglesMacro"
@@ -15,7 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 ASSETS_DIR = BASE_DIR / "Assets"
 
 
-def Grab_Config(Macro: Main.Main):
+def Grab_Config(Macro):
     Default_Config_Path = ASSETS_DIR / "DefaultConfig.json"
 
     Default_Config = Macro.Decode_JSON(Default_Config_Path)
@@ -48,20 +47,19 @@ def Grab_Config(Macro: Main.Main):
     return Config, Signal()
 
 
-def Save_Config(Macro: Main.Main):
+def Save_Config(Macro):
     with open(CONFIG_FILE, "w") as Config_File:
-        print(Macro.Config)
         json.dump(Macro.Config, Config_File, indent=4)
 
 
-def Get_Config(Macro: Main.Main, Property):
+def Get_Config(Macro, Property):
     if Macro.Config:
         return Macro.Config.get(Property)
     else:
         return None
 
 
-def Edit_Config(Macro: Main.Main, Path: str, Value: any):
+def Edit_Config(Macro, Path: str, Value: any):
     ConfigSignal = Macro.ConfigSignal
     Pointer = Macro.Config
 
@@ -75,7 +73,7 @@ def Edit_Config(Macro: Main.Main, Path: str, Value: any):
     ConfigSignal.Fire(Path, Value)
 
 
-def Import_Config(Macro: Main.Main, Path: str):
+def Import_Config(Macro, Path: str):
     ConfigSignal: Signal = Macro.ConfigSignal
 
     try:

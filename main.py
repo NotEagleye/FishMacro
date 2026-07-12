@@ -1,48 +1,42 @@
-import pyautogui as PyAutoGui
-import pywinctl as PyWin
-
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QHBoxLayout
-
-from qfluentwidgets import (
-    FluentWindow,
-    FluentIcon,
-    setTheme,
-    setThemeColor,
-    Theme,
-    FluentStyleSheet,
-    SwitchButton,
-    PrimaryPushButton,
-    ComboBox,
-    SpinBox,
-)
-
-from pynput import keyboard as Keyboard
-
-from crossfiledialog import open_file as Open_File
-
-from typing import Callable, Any, Optional
-
-import Modules.Input as Input
-import Modules.Calibrations as Calibrations
-
-from Modules.Config import (
-    Get_Config,
-    Save_Config,
-    Grab_Config,
-    Import_Config,
-    Edit_Config,
-)
-
+import json
 import os
 import sys
 import time
-import json
-
-from threading import Thread, Event, Lock
-
 from pathlib import Path
+from threading import Event, Lock, Thread
+from typing import Any, Callable, Optional
+
+import pyautogui as PyAutoGui
+import pywinctl as PyWin
+from crossfiledialog import open_file as Open_File
+from pynput import keyboard as Keyboard, mouse as Mouse
+from PyQt5.QtCore import Qt, QRegExp, QObject, pyqtSignal
+from PyQt5.QtGui import QRegExpValidator
+from PyQt5.QtWidgets import QApplication, QHBoxLayout, QLabel, QVBoxLayout, QWidget, QScrollArea
+from qfluentwidgets import (
+    ComboBox,
+    FluentIcon,
+    FluentStyleSheet,
+    FluentWindow,
+    LineEdit,
+    PrimaryPushButton,
+    SpinBox,
+    SwitchButton,
+    Theme,
+    setTheme,
+    setThemeColor,
+)
 from screeninfo import get_monitors as Get_Monitors
+
+import Modules.Calibrations as Calibrations
+import Modules.Input as Input
+from Modules.Config import (
+    Edit_Config,
+    Get_Config,
+    Grab_Config,
+    Import_Config,
+    Save_Config,
+)
 
 Main_Monitor = Get_Monitors()[0]
 
@@ -64,8 +58,17 @@ class Main(FluentWindow):
         self.Config, self.ConfigSignal = Grab_Config(self)
         self.ConfigChangedCallbacks = {}
 
+
+        def DeepSearch(Config, Callbacks):
+            for Key, Value in Callbacks.items():
+                if isinstance(Value, dict):
+                    DeepSearch(Config[Key], Value)
+                elif isinstance(Value, list):
+                    for Function in Value:
+                        Function(Config[Key])
+
         def SignalCalled(Path: str, Value: any):
-            if Path != "config":
+            if Path != "config" and Path != "calibrations":
                 PathIndexes = Path.split(".")
                 Pointer = self.ConfigChangedCallbacks
 
@@ -77,17 +80,12 @@ class Main(FluentWindow):
                         Function(Value)
                     except Exception:
                         pass
-            else:
-
-                def DeepSearch(Config, Callbacks):
-                    for Key, Value in Callbacks.items():
-                        if isinstance(Value, dict):
-                            DeepSearch(Config[Key], Value)
-                        elif isinstance(Value, list):
-                            for Function in Value:
-                                Function(Config[Key])
-
+            elif Path == "config":
                 DeepSearch(Value, self.ConfigChangedCallbacks)
+            elif Path == "calibrations":
+                for Key, List in self.ConfigChangedCallbacks["calibrations"].items():
+                    for Function in List:
+                        Function(Value[Key])
 
         self.ConfigSignal.Connect(SignalCalled)
 
@@ -106,7 +104,31 @@ class Main(FluentWindow):
         self.setWindowTitle("Eagle's Macro")
 
         for Interface in self.Create_Interfaces():
-            self.addSubInterface(*Interface)
+            Widget, Icon, Name = Interface
+
+            Widget = self.WrapScroll(Widget)
+            Widget.setObjectName(Name)
+
+            Widget.setStyleSheet("""
+                QScrollArea {
+                    background: transparent;
+                    border: none;
+                }
+
+                QScrollArea QWidget {
+                    background: transparent;
+                }
+
+                QScrollBar:vertical {
+                    width: 0px;
+                }
+
+                QScrollBar:horizontal {
+                    height: 0px;
+                }
+                """)
+
+            self.addSubInterface(Widget, Icon, Name)
 
         def Pressed(Key):
             try:
@@ -126,7 +148,9 @@ class Main(FluentWindow):
 
     def closeEvent(self, Event):
         self.Stop_Fishing_Worker()
+
         Save_Config(self)
+        Calibrations.Save_Calibrations(self)
 
         self.Listener.stop()
 
@@ -156,8 +180,6 @@ class Main(FluentWindow):
         Pointer = self.ConfigChangedCallbacks
 
         for Index in PathIndexes:
-            print(Index, type(Index), PathIndexes, LastIndex)
-
             try:
                 Pointer = Pointer[Index]
             except Exception:
@@ -178,7 +200,13 @@ class Main(FluentWindow):
                 )
             )
 
-        print(self.ConfigChangedCallbacks)
+    def WrapScroll(self, Widget):
+        Scroll = QScrollArea()
+        Scroll.setWidgetResizable(True)
+        Scroll.setFrameShape(QScrollArea.NoFrame)
+        Scroll.setWidget(Widget)
+
+        return Scroll
 
     def CreateInterface(self, Name, TitleCard) -> tuple[QWidget, QVBoxLayout]:
         Interface = QWidget()
@@ -327,6 +355,9 @@ class Main(FluentWindow):
             "Calibrations", "Calibrations"
         )
 
+        MacroCalibrations = self.Get_Calibrations()
+        CalibrationsList = []
+
         PresetResolutionBox = ComboBox()
         PresetResolutionBox.setFixedWidth(150)
 
@@ -337,8 +368,7 @@ class Main(FluentWindow):
 
         PresetScaleBox.addItems(["100%", "125%"])
 
-        SetPrimaryButton = PrimaryPushButton(FluentIcon.ACCEPT, "Set")
-        SetPrimaryButton.setFixedWidth(150)
+        SetPrimaryButton = PrimaryPushButton(FluentIcon.DICTIONARY_ADD, "Set")
 
         SetPrimaryButton.clicked.connect(
             lambda: Calibrations.Set_Calibrations_Preset(
@@ -347,6 +377,98 @@ class Main(FluentWindow):
                 PresetScaleBox.currentText(),
             )
         )
+
+        for Calibration, Value in MacroCalibrations.items():
+            VectorLength = len(Value)
+
+            CalibrationInput = LineEdit()
+
+            def CalibrationChanged(Vector: list[int, int], Widget=CalibrationInput):
+                String = ", ".join(map(str, Vector))
+
+                Widget.setText(String)
+
+            def StringToVector(String):
+                Vector = list(map(int, String.split(',')))
+
+                return Vector
+
+            RegEx = VectorLength == 2 and QRegExp(r"^\d+\s*,\s*\d+$") or QRegExp(r"^\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+$")
+            CalibrationInput.setValidator(
+                QRegExpValidator(RegEx)
+            )
+
+            CalibrationInput.setText(", ".join(map(str, Value)))
+            CalibrationInput.editingFinished.connect(
+                lambda Widget=CalibrationInput, Key=Calibration: 
+                    self.ConfigCallback(
+                        "calibrations." + Key, 
+                        lambda String: StringToVector(String)
+                    )(Widget.text())
+            )
+
+            self.ChangeToConfig("calibrations." + Calibration, CalibrationChanged)
+
+            CalibrationSetButton = PrimaryPushButton(FluentIcon.DICTIONARY_ADD, "Set")
+
+            def SetCalibrationCoordinates(_, Current_Key=Calibration, Current_Length=VectorLength):
+                self.Activate_Roblox()
+
+                class ClickBridge(QObject):
+                    Clicked = Current_Length == 2 and pyqtSignal(int, int, str) or pyqtSignal(int, int, int, int, str)
+
+                    def __init__(self):
+                        super().__init__()
+
+                Bridge = ClickBridge()
+
+                if Current_Length == 2:
+                    Bridge.Clicked.connect(lambda X, Y, Key: Calibrations.Set_Calibration(self, Key, [X, Y]))
+
+                    def OnClick(X, Y, Button, Pressed):
+                        if Button == Mouse.Button.left and Pressed:
+                            Bridge.Clicked.emit(int(X), int(Y), Current_Key)
+
+                            return False
+                elif Current_Length == 4:
+                    Bridge.Clicked.connect(lambda X, Y, W, H, Key: Calibrations.Set_Calibration(self, Key, [X, Y, W, H]))
+
+                    Vectors = []
+
+                    def OnClick(X, Y, Button, Pressed):
+                        if Button == Mouse.Button.left and Pressed:
+                            if len(Vectors) != 2:
+                                Vectors.append([X, Y])
+
+                            if len(Vectors) == 2:
+                                P1, P2 = Vectors[0], Vectors[1]
+
+                                Start_X = min(P1[0], P2[0])
+                                Start_Y = min(P1[1], P2[1])
+
+                                W = abs(P1[0] - P2[0])
+                                H = abs(P1[1] - P2[1])
+
+                                W = max(1, W)
+                                H = max(1, H)
+
+                                Bridge.Clicked.emit(int(Start_X), int(Start_Y), int(W), int(H), Current_Key)
+
+                                return False
+
+                            return True
+
+                MouseListener = Mouse.Listener(on_click=OnClick, daemon = True)
+                MouseListener.start()
+
+            CalibrationSetButton.clicked.connect(SetCalibrationCoordinates)
+
+            CalibrationsList.append(self.Create_Row(
+                (" ".join(word.capitalize() for word in Calibration.split('_'))) + ":",
+                CalibrationInput,
+                CalibrationSetButton
+            ))
+
 
         self.Add_Layouts(
             CalibrationsLayout,
@@ -357,7 +479,7 @@ class Main(FluentWindow):
                     PresetScaleBox,
                     SetPrimaryButton,
                 )
-            ],
+            ] + CalibrationsList,
         )
 
         CalibrationsLayout.addStretch()
@@ -378,6 +500,18 @@ class Main(FluentWindow):
                 Import_Config(self, Imported_Config_Path)
 
         ImportConfigButton.clicked.connect(ImportConfig)
+
+        ImportCalibrationButton = PrimaryPushButton(FluentIcon.DOWNLOAD, "Import")
+
+        def ImportCalibration():
+            Imported_Calibration_Path = Open_File(
+                title="Choose a calibration", filter={"Calibration JSON": "*.json"}
+            )
+
+            if Imported_Calibration_Path:
+                Calibrations.Import_Calibrations(self, Imported_Calibration_Path)
+
+        ImportCalibrationButton.clicked.connect(ImportCalibration)
 
         ThemeColorBox = ComboBox()
 
@@ -406,6 +540,7 @@ class Main(FluentWindow):
             ConfigLayout,
             [
                 self.Create_Row("Import Config:", ImportConfigButton),
+                self.Create_Row("Import Calibration:", ImportCalibrationButton),
                 self.Create_Row("Color Theme:", ThemeColorBox),
             ],
         )
@@ -468,6 +603,11 @@ class Main(FluentWindow):
         except json.JSONDecodeError as Error:
             print(f"Error decoding JSON in file: {Error}")
             return None
+
+    def Get_Calibrations(self):
+        Config = self.Config
+
+        return Config.get("calibrations")
 
     def Get_Screen_Resolution(self):
         return Main_Monitor.width, Main_Monitor.height
@@ -548,6 +688,7 @@ class Main(FluentWindow):
                     Input.KeyUp(Key)
                 elif Action_Type == "moveTo":
                     Coordinates = Properties.get("coordinates")
+                    Coordinates = Calibrations.Get_Calibration(self,Coordinates)
 
                     self.MoveTo(Coordinates)
                 elif Action_Type == "click":

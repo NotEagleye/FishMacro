@@ -9,6 +9,7 @@ import time
 
 import Modules.Input as Input
 from Modules.Calibrations import Get_Calibration
+from Modules.Config import Get_Config
 
 # ye alot of this code contains code from coteab so huge credit to them
 
@@ -136,7 +137,7 @@ def Start_Fishing(Macro: Main):
 
     ScreenWidth, ScreenHeight = Macro.Get_Screen_Resolution()
 
-    FishingConfig = Macro.Get_Config("fishing")
+    FishingConfig = Get_Config(Macro, "fishing")
 
     Macro.MoveTo([ScreenWidth / 2, ScreenHeight / 2])
     PyAutoGui.click()
@@ -151,7 +152,7 @@ def Start_Fishing(Macro: Main):
     Last_Fish_Click = None
     GameModeEnabled = False
 
-    Pathing = "Camera"
+    Pathing = None
 
     try:
         while Can_Continue():
@@ -159,7 +160,7 @@ def Start_Fishing(Macro: Main):
                 if FishingConfig.get("closechat"):
                     PyAutoGui.press("/")
 
-                    Macro.MoveTo(Get_Calibration("chat_close_button"))
+                    Macro.MoveTo(Get_Calibration(Macro, "chat_close_button"))
                     PyAutoGui.click()
 
                 Macro.Start_Pathing("SetupCamera")
@@ -181,7 +182,7 @@ def Start_Fishing(Macro: Main):
                 if not Can_Continue():
                     continue
 
-                Macro.MoveTo(Get_Calibration("fishing_flarg_dialogue_box"))
+                Macro.MoveTo(Get_Calibration(Macro, "fishing_flarg_dialogue_box"))
 
                 for _ in range(3):
                     PyAutoGui.click()
@@ -192,32 +193,34 @@ def Start_Fishing(Macro: Main):
                 if not Can_Continue():
                     continue
 
-                Macro.MoveTo(Get_Calibration("fishing_shop_open_button"))
+                Macro.MoveTo(Get_Calibration(Macro, "fishing_shop_open_button"))
                 PyAutoGui.click()
 
                 if not Sleep(1):
                     continue
 
-                Macro.MoveTo(Get_Calibration("fishing_shop_sell_tab"))
+                Macro.MoveTo(Get_Calibration(Macro, "fishing_shop_sell_tab"))
                 PyAutoGui.click()
 
                 if not Sleep(0.5):
                     continue
 
                 for _ in range(int(Fishing_Sell_Loop)):
-                    Macro.MoveTo(Get_Calibration("fishing_shop_first_fish"))
+                    Macro.MoveTo(Get_Calibration(Macro, "fishing_shop_first_fish"))
                     PyAutoGui.click()
 
                     if not Sleep(0.4):
                         break
 
-                    Macro.MoveTo(Get_Calibration("fishing_shop_sell_all_button"))
+                    Macro.MoveTo(Get_Calibration(Macro, "fishing_shop_sell_all_button"))
                     PyAutoGui.click()
 
                     if not Sleep(0.8):
                         break
 
-                    Macro.MoveTo(Get_Calibration("fishing_confirm_sell_all_button"))
+                    Macro.MoveTo(
+                        Get_Calibration(Macro, "fishing_confirm_sell_all_button")
+                    )
                     PyAutoGui.click()
 
                     if not Sleep(0.8):
@@ -226,7 +229,7 @@ def Start_Fishing(Macro: Main):
                 if not Can_Continue():
                     continue
 
-                Macro.MoveTo(Get_Calibration("fishing_shop_close_button"))
+                Macro.MoveTo(Get_Calibration(Macro, "fishing_shop_close_button"))
                 PyAutoGui.click()
 
                 Caught_Fish = 0
@@ -242,10 +245,17 @@ def Start_Fishing(Macro: Main):
                 Last_Fish_Click = None
                 Pathing = "Camera"
 
+                for _ in range(5):
+                    Macro.MoveTo(Get_Calibration(Macro, "fishing_close_button_pos"))
+                    PyAutoGui.click()
+
+                    if not Sleep(0.11):
+                        break
+
                 continue
 
             if not Last_Fish_Click and not GameModeEnabled:
-                Macro.MoveTo(Get_Calibration("fishing_click_position"))
+                Macro.MoveTo(Get_Calibration(Macro, "fishing_click_position"))
                 PyAutoGui.click()
 
                 Last_Fish_Click = time.monotonic()
@@ -253,7 +263,7 @@ def Start_Fishing(Macro: Main):
                 continue
             elif Last_Fish_Click and not GameModeEnabled:
                 PixelColor = Get_Pixel_RGB(
-                    *Get_Calibration("fishing_detect_pixel"),
+                    *Get_Calibration(Macro, "fishing_detect_pixel"),
                     ScreenshotTool=ScreenshotTool,
                 )
 
@@ -270,10 +280,12 @@ def Start_Fishing(Macro: Main):
                 Sleep(0.18)
 
                 Bar_Color = Get_Pixel_RGB(
-                    *Get_Calibration("fishing_midbar_sample_pos"),
+                    *Get_Calibration(Macro, "fishing_midbar_sample_pos"),
                     ScreenshotTool=ScreenshotTool,
                 )
+
                 Start = time.time()
+                LastShouldClick = None
 
                 while (time.time() - Start) < 9:
                     if not Can_Continue():
@@ -281,16 +293,21 @@ def Start_Fishing(Macro: Main):
 
                     Found = Detect_Color(
                         Bar_Color,
-                        Get_Calibration("fishing_bar_region"),
+                        Get_Calibration(Macro, "fishing_bar_region"),
                         ScreenshotTool=ScreenshotTool,
                     )
 
+                    if LastShouldClick != (not Found):
+                        LastShouldClick = not Found
+
                     if not Found:
-                        for Index in range(max(1, 2)):
-                            Macro.MoveTo(Get_Calibration("fishing_click_position"))
+                        for Index in range(3):
+                            Macro.MoveTo(
+                                Get_Calibration(Macro, "fishing_click_position")
+                            )
                             PyAutoGui.click()
 
-                            if Index + 1 < 2 and not Sleep(0.001):
+                            if Index + 1 < 3 and not Sleep(0.0005):
                                 break
 
                     time.sleep(0.002)
@@ -302,7 +319,7 @@ def Start_Fishing(Macro: Main):
                     continue
 
                 for _ in range(5):
-                    Macro.MoveTo(Get_Calibration("fishing_close_button_pos"))
+                    Macro.MoveTo(Get_Calibration(Macro, "fishing_close_button_pos"))
                     PyAutoGui.click()
 
                     if not Sleep(0.11):

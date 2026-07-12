@@ -1,9 +1,8 @@
+import json
+import os
 from pathlib import Path
 
 import main as Main
-
-import json
-import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -57,20 +56,29 @@ def Decode_JSON(Path):
         return None
 
 
-def Get_Calibration(Calibration: str):
-    Calibrations = Decode_JSON(CALIBRATIONS_PATH)
+def Get_Calibration(Macro: Main.Main, Calibration: str):
+    Calibrations = Macro.Get_Calibrations()
     Calibration: list = Calibrations.get(Calibration)
 
     return Calibration
 
 
-def Set_Calibration(Calibration: str, Value: any):
-    Calibrations = Decode_JSON(CALIBRATIONS_PATH)
+def Set_Calibration(Macro: Main.Main, Calibration: str, Value: any):
+    Calibrations = Macro.Get_Calibrations()
+    ConfigSignal = Macro.ConfigSignal
 
     try:
         Calibrations[Calibration] = Value
+        ConfigSignal.Fire("calibrations." + Calibration, Value)
     except Exception:
         pass
+
+
+def Save_Calibrations(Macro: Main.Main):
+    Calibrations = Macro.Get_Calibrations()
+
+    with open(CALIBRATIONS_PATH, "w") as Calibrations_File:
+        json.dump(Calibrations, Calibrations_File, indent=4)
 
 
 def Get_Calibration_Presets():
@@ -81,7 +89,9 @@ def Get_Calibration_Presets():
 
 def Set_Calibrations_Preset(Macro: Main.Main, Resolution, Scale):
     Default_Calibrations = Get_Calibration_Presets()
+
     Macro_Config = Macro.Config
+    Config_Signal = Macro.ConfigSignal
 
     for Calibrations in Default_Calibrations:
         Calibration_Resolution = Calibrations.get("resolution")
@@ -92,4 +102,21 @@ def Set_Calibrations_Preset(Macro: Main.Main, Resolution, Scale):
         if Calibration_Resolution == Resolution and Calibration_Scale == Scale:
             with open(CALIBRATIONS_PATH, "w") as Calibration_File:
                 json.dump(Calibration_Preset, Calibration_File, indent=4)
+
                 Macro_Config["calibrations"] = Calibration_Preset
+                Config_Signal.Fire("calibrations", Calibration_Preset)
+
+def Import_Calibrations(Macro: Main.Main, Path: str):
+    Macro_Config = Macro.Config
+    Config_Signal = Macro.ConfigSignal
+
+    try:
+        Calibration_Data = None
+
+        with open(Path, 'r') as Imported_Calibration:
+            Calibration_Data = json.load(Imported_Calibration)
+
+        Macro_Config["calibrations"] = Calibration_Data
+        Config_Signal.Fire("calibrations", Calibration_Data)
+    except Exception as Error:
+        print(f"Failed to import calibration, Error: {Error}")

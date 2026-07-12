@@ -2,8 +2,7 @@ pywinctl
 pyautogui
 screeninfo
 PyQt5
-PyQt-Fluent-Widgets -i https://pypi.org/simple/
-pytesseract
+PyQt-Fluent-Widgets
 mss
 numpy
 pynput
