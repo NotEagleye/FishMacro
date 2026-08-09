@@ -5,7 +5,8 @@
         "pathing": "Normal",
         "fishingloop": 15,
         "sellloop": 15,
-        "closechat": false
+        "closechat": false,
+        "startatfish": false
     },
     "calibrations": {
         "collections_button": [35, 463],

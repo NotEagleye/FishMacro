@@ -12,7 +12,14 @@ from crossfiledialog import open_file as Open_File
 from pynput import keyboard as Keyboard, mouse as Mouse
 from PyQt5.QtCore import Qt, QRegExp, QObject, pyqtSignal
 from PyQt5.QtGui import QRegExpValidator
-from PyQt5.QtWidgets import QApplication, QHBoxLayout, QLabel, QVBoxLayout, QWidget, QScrollArea
+from PyQt5.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QLabel,
+    QVBoxLayout,
+    QWidget,
+    QScrollArea,
+)
 from qfluentwidgets import (
     ComboBox,
     FluentIcon,
@@ -41,7 +48,9 @@ from Modules.Config import (
 Main_Monitor = Get_Monitors()[0]
 
 CONFIG_DIR = Path.home() / ".config" / "EaglesMacro"
+
 CONFIG_FILE = CONFIG_DIR / "Config.json"
+CALIBRATIONS_FILE = CONFIG_DIR / "Calibrations.json"
 
 os.makedirs(CONFIG_DIR, exist_ok=True)
 
@@ -57,7 +66,6 @@ class Main(FluentWindow):
 
         self.Config, self.ConfigSignal = Grab_Config(self)
         self.ConfigChangedCallbacks = {}
-
 
         def DeepSearch(Config, Callbacks):
             for Key, Value in Callbacks.items():
@@ -109,7 +117,8 @@ class Main(FluentWindow):
             Widget = self.WrapScroll(Widget)
             Widget.setObjectName(Name)
 
-            Widget.setStyleSheet("""
+            Widget.setStyleSheet(
+                """
                 QScrollArea {
                     background: transparent;
                     border: none;
@@ -126,7 +135,8 @@ class Main(FluentWindow):
                 QScrollBar:horizontal {
                     height: 0px;
                 }
-                """)
+                """
+            )
 
             self.addSubInterface(Widget, Icon, Name)
 
@@ -335,6 +345,13 @@ class Main(FluentWindow):
 
         CloseChatToggle.checkedChanged.connect(self.ConfigCallback("fishing.closechat"))
 
+        StartAtFish = SwitchButton()
+
+        StartAtFish.setChecked(isChecked=FishingConfig.get("startatfish"))
+        self.ChangeToConfig("fishing.startatfish", StartAtFish.setChecked)
+
+        StartAtFish.checkedChanged.connect(self.ConfigCallback("fishing.startatfish"))
+
         self.Add_Layouts(
             FishingLayout,
             [
@@ -343,6 +360,7 @@ class Main(FluentWindow):
                 self.Create_Row("Fish x fishes:", FishSpinBox),
                 self.Create_Row("Sell x fishes:", SellSpinBox),
                 self.Create_Row("Close chat before fishing:", CloseChatToggle),
+                self.Create_Row("Start at a fishing spot:", StartAtFish),
             ],
         )
 
@@ -389,33 +407,39 @@ class Main(FluentWindow):
                 Widget.setText(String)
 
             def StringToVector(String):
-                Vector = list(map(int, String.split(',')))
+                Vector = list(map(int, String.split(",")))
 
                 return Vector
 
-            RegEx = VectorLength == 2 and QRegExp(r"^\d+\s*,\s*\d+$") or QRegExp(r"^\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+$")
-            CalibrationInput.setValidator(
-                QRegExpValidator(RegEx)
+            RegEx = (
+                VectorLength == 2
+                and QRegExp(r"^\d+\s*,\s*\d+$")
+                or QRegExp(r"^\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+$")
             )
+            CalibrationInput.setValidator(QRegExpValidator(RegEx))
 
             CalibrationInput.setText(", ".join(map(str, Value)))
             CalibrationInput.editingFinished.connect(
-                lambda Widget=CalibrationInput, Key=Calibration: 
-                    self.ConfigCallback(
-                        "calibrations." + Key, 
-                        lambda String: StringToVector(String)
-                    )(Widget.text())
+                lambda Widget=CalibrationInput, Key=Calibration: self.ConfigCallback(
+                    "calibrations." + Key, lambda String: StringToVector(String)
+                )(Widget.text())
             )
 
             self.ChangeToConfig("calibrations." + Calibration, CalibrationChanged)
 
             CalibrationSetButton = PrimaryPushButton(FluentIcon.DICTIONARY_ADD, "Set")
 
-            def SetCalibrationCoordinates(_, Current_Key=Calibration, Current_Length=VectorLength):
+            def SetCalibrationCoordinates(
+                _, Current_Key=Calibration, Current_Length=VectorLength
+            ):
                 self.Activate_Roblox()
 
                 class ClickBridge(QObject):
-                    Clicked = Current_Length == 2 and pyqtSignal(int, int, str) or pyqtSignal(int, int, int, int, str)
+                    Clicked = (
+                        Current_Length == 2
+                        and pyqtSignal(int, int, str)
+                        or pyqtSignal(int, int, int, int, str)
+                    )
 
                     def __init__(self):
                         super().__init__()
@@ -423,15 +447,24 @@ class Main(FluentWindow):
                 Bridge = ClickBridge()
 
                 if Current_Length == 2:
-                    Bridge.Clicked.connect(lambda X, Y, Key: Calibrations.Set_Calibration(self, Key, [X, Y]))
+                    Bridge.Clicked.connect(
+                        lambda X, Y, Key: Calibrations.Set_Calibration(
+                            self, Key, [X, Y]
+                        )
+                    )
 
                     def OnClick(X, Y, Button, Pressed):
                         if Button == Mouse.Button.left and Pressed:
                             Bridge.Clicked.emit(int(X), int(Y), Current_Key)
 
                             return False
+
                 elif Current_Length == 4:
-                    Bridge.Clicked.connect(lambda X, Y, W, H, Key: Calibrations.Set_Calibration(self, Key, [X, Y, W, H]))
+                    Bridge.Clicked.connect(
+                        lambda X, Y, W, H, Key: Calibrations.Set_Calibration(
+                            self, Key, [X, Y, W, H]
+                        )
+                    )
 
                     Vectors = []
 
@@ -452,23 +485,31 @@ class Main(FluentWindow):
                                 W = max(1, W)
                                 H = max(1, H)
 
-                                Bridge.Clicked.emit(int(Start_X), int(Start_Y), int(W), int(H), Current_Key)
+                                Bridge.Clicked.emit(
+                                    int(Start_X),
+                                    int(Start_Y),
+                                    int(W),
+                                    int(H),
+                                    Current_Key,
+                                )
 
                                 return False
 
                             return True
 
-                MouseListener = Mouse.Listener(on_click=OnClick, daemon = True)
+                MouseListener = Mouse.Listener(on_click=OnClick, daemon=True)
                 MouseListener.start()
 
             CalibrationSetButton.clicked.connect(SetCalibrationCoordinates)
 
-            CalibrationsList.append(self.Create_Row(
-                (" ".join(word.capitalize() for word in Calibration.split('_'))) + ":",
-                CalibrationInput,
-                CalibrationSetButton
-            ))
-
+            CalibrationsList.append(
+                self.Create_Row(
+                    (" ".join(word.capitalize() for word in Calibration.split("_")))
+                    + ":",
+                    CalibrationInput,
+                    CalibrationSetButton,
+                )
+            )
 
         self.Add_Layouts(
             CalibrationsLayout,
@@ -479,7 +520,8 @@ class Main(FluentWindow):
                     PresetScaleBox,
                     SetPrimaryButton,
                 )
-            ] + CalibrationsList,
+            ]
+            + CalibrationsList,
         )
 
         CalibrationsLayout.addStretch()
@@ -500,6 +542,20 @@ class Main(FluentWindow):
                 Import_Config(self, Imported_Config_Path)
 
         ImportConfigButton.clicked.connect(ImportConfig)
+
+        ResetConfigButton = PrimaryPushButton(FluentIcon.REMOVE, "Reset")
+
+        def ResetConfig():
+            if CONFIG_FILE.is_file():
+                print("removing config lil bro")
+                os.remove(CONFIG_FILE)
+                print("removed")
+
+            # self.close()
+
+            return
+
+        ResetConfigButton.clicked.connect(ResetConfig)
 
         ImportCalibrationButton = PrimaryPushButton(FluentIcon.DOWNLOAD, "Import")
 
@@ -540,6 +596,7 @@ class Main(FluentWindow):
             ConfigLayout,
             [
                 self.Create_Row("Import Config:", ImportConfigButton),
+                self.Create_Row("Reset Config (Closes the macro):", ResetConfigButton),
                 self.Create_Row("Import Calibration:", ImportCalibrationButton),
                 self.Create_Row("Color Theme:", ThemeColorBox),
             ],
@@ -587,7 +644,7 @@ class Main(FluentWindow):
             [self.Home_Interface(), FluentIcon.HOME, "Home"],
             [self.Fishing_Interface(), FluentIcon.SETTING, "Fishing"],
             [self.Calibrations_Interface(), FluentIcon.SYNC, "Calibrations"],
-            [self.Potion_Interface(), FluentIcon.MOVE, "Potion Crafting"],
+            # [self.Potion_Interface(), FluentIcon.MOVE, "Potion Crafting"],
             [self.Config_Interface(), FluentIcon.DEVELOPER_TOOLS, "Configuration"],
         ]
 
@@ -688,7 +745,7 @@ class Main(FluentWindow):
                     Input.KeyUp(Key)
                 elif Action_Type == "moveTo":
                     Coordinates = Properties.get("coordinates")
-                    Coordinates = Calibrations.Get_Calibration(self,Coordinates)
+                    Coordinates = Calibrations.Get_Calibration(self, Coordinates)
 
                     self.MoveTo(Coordinates)
                 elif Action_Type == "click":

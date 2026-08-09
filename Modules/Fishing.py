@@ -152,7 +152,10 @@ def Start_Fishing(Macro: Main):
     Last_Fish_Click = None
     GameModeEnabled = False
 
-    Pathing = None
+    Pathing = "Camera"
+
+    if FishingConfig.get("startatfish"):
+        Pathing = None
 
     try:
         while Can_Continue():

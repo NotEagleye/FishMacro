@@ -42,20 +42,6 @@ if not os.path.exists(CALIBRATIONS_PATH) or IsEmpty():
         )
 
 
-def Decode_JSON(Path):
-    if not Path.exists():
-        print(f"Error: file not found at {Path}")
-        return None
-
-    try:
-        with open(Path, "r") as f:
-            Data = json.load(f)
-            return Data
-    except json.JSONDecodeError as Error:
-        print(f"Error decoding JSON in file: {Error}")
-        return None
-
-
 def Get_Calibration(Macro: Main.Main, Calibration: str):
     Calibrations = Macro.Get_Calibrations()
     Calibration: list = Calibrations.get(Calibration)
@@ -89,8 +75,6 @@ def Get_Calibration_Presets():
 
 def Set_Calibrations_Preset(Macro: Main.Main, Resolution, Scale):
     Default_Calibrations = Get_Calibration_Presets()
-
-    Macro_Config = Macro.Config
     Config_Signal = Macro.ConfigSignal
 
     for Calibrations in Default_Calibrations:
@@ -102,21 +86,20 @@ def Set_Calibrations_Preset(Macro: Main.Main, Resolution, Scale):
         if Calibration_Resolution == Resolution and Calibration_Scale == Scale:
             with open(CALIBRATIONS_PATH, "w") as Calibration_File:
                 json.dump(Calibration_Preset, Calibration_File, indent=4)
-
-                Macro_Config["calibrations"] = Calibration_Preset
                 Config_Signal.Fire("calibrations", Calibration_Preset)
 
+
 def Import_Calibrations(Macro: Main.Main, Path: str):
-    Macro_Config = Macro.Config
     Config_Signal = Macro.ConfigSignal
 
     try:
         Calibration_Data = None
 
-        with open(Path, 'r') as Imported_Calibration:
+        with open(Path, "r") as Imported_Calibration:
             Calibration_Data = json.load(Imported_Calibration)
 
-        Macro_Config["calibrations"] = Calibration_Data
-        Config_Signal.Fire("calibrations", Calibration_Data)
+        with open(CALIBRATIONS_PATH, "w") as Calibration_File:
+            json.dump(Calibration_Data, Calibration_File, indent=4)
+            Config_Signal.Fire("calibrations", Calibration_Data)
     except Exception as Error:
         print(f"Failed to import calibration, Error: {Error}")
